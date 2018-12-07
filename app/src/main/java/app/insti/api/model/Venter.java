@@ -37,7 +37,7 @@ public class Venter {
         @SerializedName("comments")
         private List<Comment> comment;
         private int voteCount;
-        private boolean complaintsubscribed;
+        private int complaintsubscribed;
 
         @NonNull
         public String getComplaintID() {
@@ -152,11 +152,11 @@ public class Venter {
             this.userssubscribed = userssubscribed;
         }
 
-        public boolean isComplaintsubscribed() {
+        public int getComplaintsubscribed() {
             return complaintsubscribed;
         }
 
-        public void setComplaintsubscribed(boolean complaintsubscribed) {
+        public void setComplaintsubscribed(int complaintsubscribed) {
             this.complaintsubscribed = complaintsubscribed;
         }
     }

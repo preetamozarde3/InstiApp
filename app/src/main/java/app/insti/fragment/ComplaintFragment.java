@@ -76,9 +76,9 @@ public class ComplaintFragment extends Fragment {
                         }
                         /*for (User currentUser : complaint.getUserssubscribed()){
                             if (currentUser.getUserID().equals(userId)){
-                                complaint.setComplaintsubscribed(true);
+                                complaint.setComplaintsubscribed(1);
                             } else {
-                                complaint.setComplaintsubscribed(false);
+                                complaint.setComplaintsubscribed(0);
                             }
                         }*/
                     }

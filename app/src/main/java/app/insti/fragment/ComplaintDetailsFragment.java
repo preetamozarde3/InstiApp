@@ -85,6 +85,7 @@ public class ComplaintDetailsFragment extends Fragment {
     private NestedScrollView nestedScrollView;
     private CircleIndicator circleIndicator;
     private LinearLayout linearLayoutComplaintDetails;
+    private LinearLayout imageHolderView;
 
     public static ComplaintDetailsFragment getInstance(String sessionid, String complaintid, String userid, String userProfileUrl) {
         sId = sessionid;
@@ -149,15 +150,18 @@ public class ComplaintDetailsFragment extends Fragment {
         notificationsoff.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                subscribeToComplaint(detailedComplaint);
+                notificationson.setVisibility(View.VISIBLE);
+                notificationsoff.setVisibility(View.GONE);
+                /*subscribeToComplaint(detailedComplaint);*/
             }
         });
 
         notificationson.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                subscribeToComplaint(detailedComplaint);
-
+                notificationsoff.setVisibility(View.VISIBLE);
+                notificationson.setVisibility(View.GONE);
+                /*subscribeToComplaint(detailedComplaint);*/
             }
         });
 
@@ -193,6 +197,7 @@ public class ComplaintDetailsFragment extends Fragment {
 
     private void initialiseViews(View view) {
         linearLayoutComplaintDetails = view.findViewById(R.id.linearLayoutComplaintDetails);
+        imageHolderView = view.findViewById(R.id.image_holder_view);
         nestedScrollView = view.findViewById(R.id.nestedScrollViewComplaintDetail);
         textViewUserName = view.findViewById(R.id.textViewUserName);
         textViewReportDate = view.findViewById(R.id.textViewReportDate);
@@ -252,14 +257,13 @@ public class ComplaintDetailsFragment extends Fragment {
             Log.i(TAG, "@@@@@@@@@@@@@@@@@ Inside complaintdetailsfragment: populateviews, upvotelist: "+upVotesList);
             addCommentsToView(detailedComplaint);
             Log.i(TAG, "@@@@@@@@@@@@@@@@@ Inside complaintdetailsfragment: populateviews, commentlist "+commentList);
-            if (detailedComplaint.isComplaintsubscribed()){
+            /*if (detailedComplaint.getComplaintsubscribed() == 1){
                 notificationson.setVisibility(View.VISIBLE);
                 notificationsoff.setVisibility(View.GONE);
-            } else if (!detailedComplaint.isComplaintsubscribed()){
+            } else if (detailedComplaint.getComplaintsubscribed() == 0){
                 notificationson.setVisibility(View.GONE);
                 notificationsoff.setVisibility(View.INVISIBLE);
-            }
-
+            }*/
             initViewPagerForImages(detailedComplaint);
             Log.i(TAG, "@@@@@@@@@@@@@@@@@ Inside complaintdetailsfragment: popuatateviews,initviewpagerforimages ");
             addTagsToView(detailedComplaint);
@@ -406,16 +410,14 @@ public class ComplaintDetailsFragment extends Fragment {
 
     private void subscribeToComplaint(final Venter.Complaint detailedComplaint){
         RetrofitInterface retrofitInterface = Utils.getRetrofitInterface();
-        if (detailedComplaint.isComplaintsubscribed()) {
+        if (detailedComplaint.getComplaintsubscribed() == 0) {
             retrofitInterface.upVote("sessionid=" + sId, cId, 1).enqueue(new Callback<Venter.Complaint>() {
                 @Override
                 public void onResponse(Call<Venter.Complaint> call, Response<Venter.Complaint> response) {
                     if (response.isSuccessful()) {
-                        Venter.Complaint complaint = response.body();
-                        detailedComplaint.setComplaintsubscribed(false);
-                        notificationson.setVisibility(View.GONE);
-                        notificationsoff.setVisibility(View.VISIBLE);
-
+                        detailedComplaint.setComplaintsubscribed(1);
+                        notificationson.setVisibility(View.VISIBLE);
+                        notificationsoff.setVisibility(View.GONE);
                     }
                 }
 
@@ -424,15 +426,15 @@ public class ComplaintDetailsFragment extends Fragment {
                     Log.i(TAG, "failure in up vote: " + t.toString());
                 }
             });
-        } else if (!detailedComplaint.isComplaintsubscribed()){
+        } else if (detailedComplaint.getComplaintsubscribed() == 1){
             retrofitInterface.upVote("sessionid=" + sId, cId, 0).enqueue(new Callback<Venter.Complaint>() {
                 @Override
                 public void onResponse(Call<Venter.Complaint> call, Response<Venter.Complaint> response) {
                     if (response.isSuccessful()) {
                         Venter.Complaint complaint = response.body();
-                        detailedComplaint.setComplaintsubscribed(true);
-                        notificationsoff.setVisibility(View.GONE);
-                        notificationson.setVisibility(View.VISIBLE);
+                        detailedComplaint.setComplaintsubscribed(0);
+                        notificationsoff.setVisibility(View.VISIBLE);
+                        notificationson.setVisibility(View.GONE);
                     }
                 }
 

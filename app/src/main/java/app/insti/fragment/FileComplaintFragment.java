@@ -16,7 +16,9 @@ import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.AppBarLayout;
 import android.support.design.widget.CollapsingToolbarLayout;
+import android.support.design.widget.CoordinatorLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -87,6 +89,9 @@ import me.relex.circleindicator.CircleIndicator;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.widget.TextView;
+import app.insti.api.model.Venter;
 
 import static app.insti.Constants.MY_PERMISSIONS_REQUEST_LOCATION;
 import static app.insti.Constants.MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE;
@@ -130,6 +135,14 @@ public class FileComplaintFragment extends Fragment {
     private ImageButton imageButtonAddTags;
     private Button buttonAnalysis;
     private ImageButton imageActionButton;
+    private TextView error_message_me;
+    private SwipeRefreshLayout swipeContainer;
+    private boolean isCalled = false;
+    private LinearLayout linearLayoutNestedScrollView;
+    private AppBarLayout appBar;
+    private LinearLayout place_holder_image;
+    private LinearLayout image_holder_view;
+    private LinearLayout linearLayoutAll;
 
     @Override
     public void onDestroyView() {
@@ -147,6 +160,18 @@ public class FileComplaintFragment extends Fragment {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        swipeContainer.post(new Runnable() {
+            @Override
+            public void run() {
+                swipeContainer.setRefreshing(true);
+                prepareTags();
+            }
+        });
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         // Inflate the layout for this fragment
         if (view != null) {
@@ -156,11 +181,36 @@ public class FileComplaintFragment extends Fragment {
         }
         view = inflater.inflate(R.layout.fragment_file_complaint, container, false);
         bundleCollection();
-        prepareTags();
         progressDialog = new ProgressDialog(getContext());
+        swipeContainer = view.findViewById(R.id.swipeContainer);
+        error_message_me = view.findViewById(R.id.error_message_me);
+//        linearLayoutNestedScrollView = view.findViewById(R.id.linearLayoutNestedScrollView);
+//        appBar = view.findViewById(R.id.appBar);
+        linearLayoutAll = view.findViewById(R.id.linearLayoutAll);
+        place_holder_image = view.findViewById(R.id.place_holder_image);
+        image_holder_view = view.findViewById(R.id.image_holder_view);
         final Toolbar toolbar = getActivity().findViewById(R.id.toolbar);
         toolbar.setTitle("Add Complaint");
         initviews(view);
+
+        swipeContainer.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                prepareTags();
+            }
+        });
+
+        swipeContainer.setColorSchemeColors(getResources().getColor(R.color.colorPrimary));
+        if (!isCalled) {
+            swipeContainer.post(new Runnable() {
+                @Override
+                public void run() {
+                    swipeContainer.setRefreshing(true);
+                    prepareTags();
+                }
+            });
+            isCalled = true;
+        }
 
         editTextTags.addTextChangedListener(new TextWatcher() {
             @Override
@@ -219,8 +269,6 @@ public class FileComplaintFragment extends Fragment {
         mMapView.onCreate(savedInstanceState);
         mMapView.onResume();
 
-        getMapReady();
-
         //Autocomplete location bar
         autoLocation();
         //ends here
@@ -251,15 +299,15 @@ public class FileComplaintFragment extends Fragment {
     }
 
     private void initviews(View view) {
-        LinearLayout imageViewHolder = view.findViewById(R.id.image_holder_view);
-        CollapsingToolbarLayout.LayoutParams layoutParams = new CollapsingToolbarLayout.LayoutParams(
-                CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
-                getResources().getDisplayMetrics().heightPixels / 2
-        );
-        imageViewHolder.setLayoutParams(layoutParams);
+//        LinearLayout imageViewHolder = view.findViewById(R.id.image_holder_view);
+//        CollapsingToolbarLayout.LayoutParams layoutParams = new CollapsingToolbarLayout.LayoutParams(
+//                CollapsingToolbarLayout.LayoutParams.MATCH_PARENT,
+//                getResources().getDisplayMetrics().heightPixels / 2
+//        );
+//        imageViewHolder.setLayoutParams(layoutParams);
 
-        collapsing_toolbar = view.findViewById(R.id.collapsing_toolbar);
-        collapsing_toolbar.setVisibility(View.GONE);
+//        collapsing_toolbar = view.findViewById(R.id.collapsing_toolbar);
+//        collapsing_toolbar.setVisibility(View.GONE);
 
         nestedScrollView = view.findViewById(R.id.nested_scrollview);
         linearLayoutAnalyse = view.findViewById(R.id.layoutAnalyse);
@@ -602,13 +650,51 @@ public class FileComplaintFragment extends Fragment {
     }
 
     private void prepareTags() {
-        tagList = new ArrayList<>();
         try {
-            for (int i = 0; i < TagCategories.CATEGORIES.length; i++) {
-                tagList.add(new ComplaintTag(TagCategories.CATEGORIES[i]));
-            }
+            RetrofitInterface retrofitInterface = Utils.getRetrofitInterface();
+            retrofitInterface.getTags("sessionid=" + getArguments().getString(Constants.SESSION_ID)).enqueue(new Callback<List<Venter.TagUri>>() {
+                @Override
+                public void onResponse(Call<List<Venter.TagUri>> call, Response<List<Venter.TagUri>> response) {
+                    if (response != null && response.isSuccessful()) {
+                        List<Venter.TagUri> tagsApiList = response.body();
+                        tagList = new ArrayList<>();
+
+                        for (int i = 0; i < tagsApiList.size(); i++) {
+                            Venter.TagUri tagUri = tagsApiList.get(i);
+                            ComplaintTag complaintTag = new ComplaintTag(tagUri.getTagUri());
+                            tagList.add(complaintTag);
+                        }
+                        swipeContainer.setRefreshing(false);
+                        linearLayoutAll.setVisibility(View.VISIBLE);
+//                        appBar.setVisibility(View.VISIBLE);
+//                        linearLayoutNestedScrollView.setVisibility(View.VISIBLE);
+                        error_message_me.setVisibility(View.GONE);
+                        getMapReady();
+                    } else {
+                        error_message_me.setVisibility(View.VISIBLE);
+                        error_message_me.setText(getString(R.string.no_complaints));
+                        swipeContainer.setRefreshing(false);
+                        linearLayoutAll.setVisibility(View.GONE);
+//                        linearLayoutNestedScrollView.setVisibility(View.GONE);
+//                        appBar.setVisibility(View.GONE);
+                    }
+                }
+                @Override
+                public void onFailure(Call<List<Venter.TagUri>> call, Throwable t) {
+                    Log.i(TAG, "failure in getting Tags: " + t.toString());
+                    swipeContainer.setRefreshing(false);
+                    error_message_me.setVisibility(View.VISIBLE);
+                    linearLayoutAll.setVisibility(View.GONE);
+//                    appBar.setVisibility(View.GONE);
+//                    linearLayoutNestedScrollView.setVisibility(View.GONE);
+                }
+            });
         } catch (Exception e) {
             e.printStackTrace();
+            swipeContainer.setRefreshing(false);
+            linearLayoutAll.setVisibility(View.GONE);
+//            appBar.setVisibility(View.GONE);
+//            linearLayoutNestedScrollView.setVisibility(View.GONE);
         }
     }
 
@@ -784,7 +870,9 @@ public class FileComplaintFragment extends Fragment {
             Bundle bundle = data.getExtras();
             Bitmap bitmap = (Bitmap) bundle.get("data");
             base64Image = convertImageToString(bitmap);
-            collapsing_toolbar.setVisibility(View.VISIBLE);
+//            collapsing_toolbar.setVisibility(View.VISIBLE);
+            place_holder_image.setVisibility(View.GONE);
+            image_holder_view.setVisibility(View.VISIBLE);
             sendImage();
 
         } else if (resultCode == Activity.RESULT_OK && requestCode == RESULT_LOAD_IMAGE && data != null) {
@@ -799,7 +887,9 @@ public class FileComplaintFragment extends Fragment {
             String picturePath = cursor.getString(columnIndex);
             cursor.close();
             base64Image = convertImageToString(getScaledBitmap(picturePath, 800, 800));
-            collapsing_toolbar.setVisibility(View.VISIBLE);
+//            collapsing_toolbar.setVisibility(View.VISIBLE);
+            place_holder_image.setVisibility(View.GONE);
+            image_holder_view.setVisibility(View.VISIBLE);
             sendImage();
         }
     }
@@ -836,7 +926,9 @@ public class FileComplaintFragment extends Fragment {
         if (viewPager != null) {
             try {
                 imageViewPagerAdapter = new ImageViewPagerAdapter(getActivity(), uploadedImagesUrl);
-                collapsing_toolbar.setVisibility(View.VISIBLE);
+//                collapsing_toolbar.setVisibility(View.VISIBLE);
+                place_holder_image.setVisibility(View.GONE);
+                image_holder_view.setVisibility(View.VISIBLE);
                 viewPager.setAdapter(imageViewPagerAdapter);
                 indicator.setViewPager(viewPager);
                 imageViewPagerAdapter.registerDataSetObserver(indicator.getDataSetObserver());
